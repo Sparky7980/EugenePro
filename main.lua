@@ -46,12 +46,37 @@ end)
 -- Add a Slider control for Walkspeed.
 Section1:Slider({
     Title = "Walkspeed",
-    Description = "",
+    Description = "Adjust your character's walking speed",
     Default = 16,
     Min = 0,
     Max = 120,
 }, function(value)
-    print("Slider value:", value)
+    local player = game.Players.LocalPlayer
+    if player and player.Character then
+        local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            humanoid.WalkSpeed = value
+            print("Walkspeed set to:", value)
+        end
+    end
+end)
+
+-- Add a Slider control for Jump Boost.
+Section1:Slider({
+    Title = "Jump Boost",
+    Description = "Adjust your character's jump power",
+    Default = 50,
+    Min = 0,
+    Max = 200,
+}, function(value)
+    local player = game.Players.LocalPlayer
+    if player and player.Character then
+        local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            humanoid.JumpPower = value
+            print("Jump Power set to:", value)
+        end
+    end
 end)
 
 -- Add a ColorPicker control.
