@@ -13,25 +13,37 @@ local SubButton1 = Category1:Button("Combat", "http://www.roblox.com/asset/?id=8
 -- Create a section in the sub-button. The second parameter defines the side ("Left" or "Right")
 local Section1 = SubButton1:Section("Section", "Left")
 
--- Add a Button control to the section.
+-- Add a Button control for toggling invisibility.
 Section1:Button({
-    Title = "Kill All",
-    ButtonName = "KILL!!",
-    Description = "kills everyone",
+    Title = "Invisible",
+    ButtonName = "Toggle Invisible",
+    Description = "Makes you invisible when pressed",
 }, function(value)
-    print("Button pressed:", value)
+    local player = game.Players.LocalPlayer
+    if player and player.Character then
+        for _, part in pairs(player.Character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.Transparency = part.Transparency == 0 and 1 or 0
+            end
+        end
+        print("Invisibility toggled.")
+    end
 end)
 
--- Add a Toggle control to the section.
-Section1:Toggle({
-    Title = "Auto Farm Coins",
-    Description = "Optional Description here",
-    Default = false,
+-- Add a Button control for emergency kick (kicks the user automatically when pressed).
+Section1:Button({
+    Title = "Emergency Kick",
+    ButtonName = "Kick Me",
+    Description = "Immediately kicks you from the game",
 }, function(value)
-    print("Toggle changed:", value)
+    local player = game.Players.LocalPlayer
+    if player then
+        player:Kick("Emergency Kick triggered.")
+    end
+    print("Emergency kick executed.")
 end)
 
--- Add a Slider control to the section.
+-- Add a Slider control for Walkspeed.
 Section1:Slider({
     Title = "Walkspeed",
     Description = "",
@@ -42,29 +54,11 @@ Section1:Slider({
     print("Slider value:", value)
 end)
 
--- Add a ColorPicker control to the section.
+-- Add a ColorPicker control.
 Section1:ColorPicker({
     Title = "Colorpicker",
     Description = "",
-    Default = Color3.new(1, 0, 0),  -- Note: Color3.new expects values between 0 and 1.
+    Default = Color3.new(1, 0, 0),
 }, function(value)
     print("Color selected:", value)
-end)
-
--- Add a Textbox control to the section.
-Section1:Textbox({
-    Title = "Damage Multiplier",
-    Description = "",
-    Default = "",
-}, function(value)
-    print("Textbox value:", value)
-end)
-
--- Add a Keybind control to the section.
-Section1:Keybind({
-    Title = "Kill All",
-    Description = "",
-    Default = Enum.KeyCode.Q,
-}, function(value)
-    print("Keybind pressed:", value)
 end)
