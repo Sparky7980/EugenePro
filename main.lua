@@ -2,7 +2,7 @@
 local UILib = loadstring(game:HttpGet('https://raw.githubusercontent.com/StepBroFurious/Script/main/HydraHubUi.lua'))()
 
 -- Create a new window. (Parameters: game name, userId, rank)
-local Window = UILib.new("Grand Piece Online", game.Players.LocalPlayer.UserId, "Buyer")
+local Window = UILib.new("EugenePro", game.Players.LocalPlayer.UserId, "Premium")
 
 -- Create a category (with an icon asset)
 local Category1 = Window:Category("Main", "http://www.roblox.com/asset/?id=8395621517")
