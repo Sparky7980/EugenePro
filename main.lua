@@ -1,89 +1,211 @@
--- Load the HydraHub UI library from GitHub
-local UILib = loadstring(game:HttpGet('https://raw.githubusercontent.com/StepBroFurious/Script/main/HydraHubUi.lua'))()
+-- ==== UTILITY FUNCTIONS ====
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
 
--- Create a new window. (Parameters: game name, userId, rank)
-local Window = UILib.new("EugenePro", game.Players.LocalPlayer.UserId, "Premium")
+-- Teleport helper
+local function teleportTo(targetCFrame)
+    local char = LocalPlayer.Character
+    if char and char:FindFirstChild("HumanoidRootPart") then
+        char.HumanoidRootPart.CFrame = targetCFrame
+    end
+end
 
--- Create a category (with an icon asset)
-local Category1 = Window:Category("Main", "http://www.roblox.com/asset/?id=8395621517")
+-- ==== 1) TELEPORT TOOL ====
+Section1:Dropdown({
+    Title       = "Teleport To Player",
+    Description = "Select a player to TP to",
+    Items       = function() 
+        local list = {}
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer then table.insert(list, p.Name) end
+        end
+        return list
+    end,
+    Default     = nil,
+}, function(playerName)
+    local target = Players:FindFirstChild(playerName)
+    if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+        teleportTo(target.Character.HumanoidRootPart.CFrame)
+        print("Teleported to", playerName)
+    end
+end)
 
--- Create a sub-button under the category (with its own icon)
-local SubButton1 = Category1:Button("Combat", "http://www.roblox.com/asset/?id=8395747586")
+-- ==== 2) FLY / NO-CLIP MODE ====
+local flying = false
+local bv, bg
 
--- Create a section in the sub-button. The second parameter defines the side ("Left" or "Right")
-local Section1 = SubButton1:Section("Section", "Left")
+local function startFly()
+    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    local root = char:WaitForChild("HumanoidRootPart")
+    -- setup BodyVelocity & BodyGyro
+    bv = Instance.new("BodyVelocity")
+    bv.MaxForce = Vector3.new(1e5,1e5,1e5)
+    bv.Velocity = Vector3.new(0,0,0)
+    bv.Parent = root
 
--- Add a Button control for toggling invisibility.
-Section1:Button({
-    Title = "Invisible",
-    ButtonName = "Toggle Invisible",
-    Description = "Makes you invisible when pressed",
-}, function(value)
-    local player = game.Players.LocalPlayer
-    if player and player.Character then
-        for _, part in pairs(player.Character:GetDescendants()) do
-            if part:IsA("BasePart") then
-                part.Transparency = part.Transparency == 0 and 1 or 0
+    bg = Instance.new("BodyGyro")
+    bg.MaxTorque = Vector3.new(1e5,1e5,1e5)
+    bg.CFrame = root.CFrame
+    bg.Parent = root
+
+    -- no-clip
+    RunService.Stepped:Connect(function()
+        if flying then
+            for _, part in pairs(char:GetDescendants()) do
+                if part:IsA("BasePart") then part.CanCollide = false end
             end
         end
-        print("Invisibility toggled.")
-    end
-end)
+    end)
 
--- Add a Button control for emergency kick (kicks the user automatically when pressed).
-Section1:Button({
-    Title = "Emergency Kick",
-    ButtonName = "Kick Me",
-    Description = "Immediately kicks you from the game",
-}, function(value)
-    local player = game.Players.LocalPlayer
-    if player then
-        player:Kick("Emergency Kick triggered.")
+    -- movement
+    local direction = Vector3.new()
+    local function updateVel()
+        local camCF = workspace.CurrentCamera.CFrame
+        local move = Vector3.new()
+        if direction.Z ~= 0 then move = move + (camCF.LookVector * direction.Z) end
+        if direction.X ~= 0 then move = move + (camCF.RightVector * direction.X) end
+        bv.Velocity = move * 50 + Vector3.new(0, direction.Y * 50, 0)
+        bg.CFrame = CFrame.new(root.Position, root.Position + camCF.LookVector)
     end
-    print("Emergency kick executed.")
-end)
 
--- Add a Slider control for Walkspeed.
-Section1:Slider({
-    Title = "Walkspeed",
-    Description = "Adjust your character's walking speed",
-    Default = 16,
-    Min = 0,
-    Max = 120,
-}, function(value)
-    local player = game.Players.LocalPlayer
-    if player and player.Character then
-        local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
-        if humanoid then
-            humanoid.WalkSpeed = value
-            print("Walkspeed set to:", value)
+    -- input handlers
+    local function onInputBegan(input)
+        if input.UserInputType == Enum.UserInputType.Keyboard then
+            if input.KeyCode == Enum.KeyCode.W then direction = direction + Vector3.new(0,0,-1) end
+            if input.KeyCode == Enum.KeyCode.S then direction = direction + Vector3.new(0,0,1) end
+            if input.KeyCode == Enum.KeyCode.A then direction = direction + Vector3.new(-1,0,0) end
+            if input.KeyCode == Enum.KeyCode.D then direction = direction + Vector3.new(1,0,0) end
+            if input.KeyCode == Enum.KeyCode.Space then direction = direction + Vector3.new(0,1,0) end
+            if input.KeyCode == Enum.KeyCode.LeftControl then direction = direction + Vector3.new(0,-1,0) end
+        end
+        updateVel()
+    end
+    local function onInputEnded(input)
+        if input.UserInputType == Enum.UserInputType.Keyboard then
+            if input.KeyCode == Enum.KeyCode.W then direction = direction - Vector3.new(0,0,-1) end
+            if input.KeyCode == Enum.KeyCode.S then direction = direction - Vector3.new(0,0,1) end
+            if input.KeyCode == Enum.KeyCode.A then direction = direction - Vector3.new(-1,0,0) end
+            if input.KeyCode == Enum.KeyCode.D then direction = direction - Vector3.new(1,0,0) end
+            if input.KeyCode == Enum.KeyCode.Space then direction = direction - Vector3.new(0,1,0) end
+            if input.KeyCode == Enum.KeyCode.LeftControl then direction = direction - Vector3.new(0,-1,0) end
+        end
+        updateVel()
+    end
+
+    UserInputService.InputBegan:Connect(onInputBegan)
+    UserInputService.InputEnded:Connect(onInputEnded)
+end
+
+local function stopFly()
+    if bv then bv:Destroy() end
+    if bg then bg:Destroy() end
+    -- restore collisions
+    local char = LocalPlayer.Character
+    if char then
+        for _, part in pairs(char:GetDescendants()) do
+            if part:IsA("BasePart") then part.CanCollide = true end
         end
     end
-end)
+end
 
--- Add a Slider control for Jump Boost.
-Section1:Slider({
-    Title = "Jump Boost",
-    Description = "Adjust your character's jump power",
-    Default = 50,
-    Min = 0,
-    Max = 200,
+Section1:Toggle({
+    Title       = "Fly Mode",
+    Description = "Toggle fly / noclip (Infinite Yield style)",
+    Default     = false,
 }, function(value)
-    local player = game.Players.LocalPlayer
-    if player and player.Character then
-        local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
-        if humanoid then
-            humanoid.JumpPower = value
-            print("Jump Power set to:", value)
-        end
+    flying = value
+    if flying then
+        startFly()
+        print("Fly mode enabled")
+    else
+        stopFly()
+        print("Fly mode disabled")
     end
 end)
 
--- Add a ColorPicker control.
-Section1:ColorPicker({
-    Title = "Colorpicker",
-    Description = "",
-    Default = Color3.new(1, 0, 0),
-}, function(value)
-    print("Color selected:", value)
+-- ==== 3) ESP (Extra Sensory Perception) ====
+local espFolder = Instance.new("Folder", workspace)
+espFolder.Name = "AdminESP"
+
+local function createESPBillboard(target)
+    if not target.Character then return end
+    local hrp = target.Character:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+
+    local bill = Instance.new("BillboardGui")
+    bill.Name = "ESP_"..target.Name
+    bill.Adornee = hrp
+    bill.Size = UDim2.new(0,100,0,40)
+    bill.AlwaysOnTop = true
+    bill.Parent = espFolder
+
+    local txt = Instance.new("TextLabel", bill)
+    txt.Size = UDim2.new(1,0,1,0)
+    txt.BackgroundTransparency = 1
+    txt.Text = target.Name
+    txt.TextScaled = true
+    txt.TextStrokeTransparency = 0
+    txt.TextColor3 = Color3.new(1,0,0)
+end
+
+local function clearESP()
+    espFolder:ClearAllChildren()
+end
+
+Section1:Toggle({
+    Title       = "ESP",
+    Description = "Toggle name ESP on all players",
+    Default     = false,
+}, function(enabled)
+    clearESP()
+    if enabled then
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer then createESPBillboard(p) end
+        end
+        -- watch for new players
+        Players.PlayerAdded:Connect(function(p) createESPBillboard(p) end)
+    end
+end)
+
+-- ==== 4) GOD MODE / INVINCIBILITY ====
+local godEnabled = false
+local function onHealthChanged(hum, newHealth)
+    if godEnabled and newHealth < hum.MaxHealth then
+        hum.Health = hum.MaxHealth
+    end
+end
+
+Section1:Toggle({
+    Title       = "God Mode",
+    Description = "Prevents you from taking damage",
+    Default     = false,
+}, function(enabled)
+    godEnabled = enabled
+    local char = LocalPlayer.Character
+    if char then
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if hum then
+            if enabled then
+                hum.MaxHealth = math.huge
+                hum.Health = hum.MaxHealth
+                hum.HealthChanged:Connect(function(new) onHealthChanged(hum, new) end)
+            else
+                hum.MaxHealth = 100
+                hum.Health = 100
+            end
+        end
+    end
+    print("God Mode is now", enabled and "ON" or "OFF")
+end)
+
+-- Persist God Mode across respawn
+LocalPlayer.CharacterAdded:Connect(function(char)
+    if godEnabled then
+        local hum = char:WaitForChild("Humanoid")
+        hum.MaxHealth = math.huge
+        hum.Health = hum.MaxHealth
+        hum.HealthChanged:Connect(function(new) onHealthChanged(hum, new) end)
+    end
 end)
